@@ -1,0 +1,22 @@
+sudo: required
+
+language: generic
+
+services:
+- docker
+
+script:
+- make docker
+
+before_deploy:
+- sudo chmod -R a+rw build/
+- make zip
+
+deploy:
+  provider: releases
+  api_key: ${GITHUB_TOKEN}
+  skip_cleanup: true
+  file_glob: true
+  file: build/*.zip
+  on:
+    tags: true

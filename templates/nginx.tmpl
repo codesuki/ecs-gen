@@ -1,0 +1,24 @@
+log_format vhost '$host $remote_addr - $remote_user [$time_local] '
+                 '"$request" $status $body_bytes_sent '
+                 '"$http_referer" "$http_user_agent"';
+
+server {
+        server_name _; # This is just an invalid value which will never trigger on a real hostname.
+        listen 80;
+        access_log /var/log/nginx/access.log vhost;
+        return 503;
+}
+
+{{ range $index, $value := . }}
+upstream {{ $value.Host }} {
+         server {{ $value.Address }}:{{ $value.Port }};
+}
+server {
+        server_name {{ $value.Host }};
+        listen 80;
+        access_log /var/log/nginx/access.log vhost;
+        location / {
+                proxy_pass http://{{ $value.Host }};
+        }
+}
+{{ end }}
