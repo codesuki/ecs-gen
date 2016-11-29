@@ -1,0 +1,15 @@
+language: go
+
+go:
+- master
+
+script:
+- make docker
+
+deploy:
+  provider: releases
+  api_key:
+    secure: qBKfor/Ilyw5zmhlND2adNz8w4jF3ihZrMXLTH54Ht5/bhpP+4xw3tKPqmYKmwrMCh99PqsBAWt8zZM37FkkpUGjdH2zEOeEh0SMvLO8iAjtV9q8CNkp0BeTzyNbGLeaS827sJIRRejxb7kT9vlegTAvMAWCyHVeiNYWeeFTcJW1dHBEO8g/K8r4PnP09e87WhN+FXbVsDkOXejFx53swbYCBcurtsHMFHtNptsuX36bV0McO6BnajPB2Hdi3YLU8KI2qcxxnSBJ03DD+ED6OQER1wMMy0NMAEk1Xp280N57HL5k9QHSkRekAjO8aYoi7Kkcs+27n0CJBKIxKzHYzW42vpvNTtxVLKonefVNSwAgpf3vbO+mu9qF9ny0UZGZjAa/JF4xhTMaMpnwTrBUuto1olMqvnwcvJ7yIyogPGIciYeqBhNVA81Ka724vja1pWp8SVqRAPpf3PpSrMBf7WsdvATTJmgAfhpx5DCddhEdePPHNegmG983RYt7MeXYB04LWfs6KbBZuvS5WExnGIlnLgks5R1LM5Waa+zFE0DiOInB4x153W78LbJ2UG1jEs9HrxAUnq6xKeCwXkXMKlp9rdtp/pKfVF8g0YwGwUOeAMkjQOXwKlTbftqDfD+E7etxggnOl48YkvFPTKUdc4jzsWUlxKQumxqQrLJnhfc=
+  file: build/ecs-gen
+  on:
+    tags: true
