@@ -1,12 +1,10 @@
 # ecs-gen
-
 [![License](http://img.shields.io/badge/license-MIT-red.svg?style=flat)](./LICENSE)
 [![Build Status](http://img.shields.io/travis/codesuki/ecs-gen.svg?style=flat)](https://travis-ci.org/codesuki/ecs-gen)
 
 Inspired by [docker-gen](https://github.com/jwilder/docker-gen) ecs-gen lets you generate config files from templates using AWS ECS cluster information. [ecs-nginx-proxy](https://github.com/codesuki/ecs-nginx-proxy) uses ecs-gen to generate nginx config files.
 
 ## Installation
-
 ### Go
 `go get -u github.com/codesuki/ecs-gen`
 
@@ -44,7 +42,6 @@ When using the docker image directly you can set all parameters using environmen
 * ECS_GEN_ONCE
 
 ## Example
-
 ### Fill a template once
 Running the following on the commandline `ecs-gen` will query the specified cluster, execute the template and exit.
 `ecs-gen --once --region=ap-northeast-1 --cluster="Cluster name" --template=template.tmpl --output=output.conf`
