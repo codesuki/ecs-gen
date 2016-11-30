@@ -28,5 +28,5 @@ deps:
 
 zip:
 	for file in build/*; do \
-		zip -r "$${file}.zip" "$$file"; \
+		zip -j -r "$${file}.zip" "$$file"; \
 	done

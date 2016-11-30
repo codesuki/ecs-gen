@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"html/template"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"time"
@@ -18,6 +21,12 @@ type container struct {
 	Address string
 }
 
+type metadata struct {
+	Cluster              string
+	ContainerInstanceArn string
+	Version              string
+}
+
 var (
 	errClusterNotActive = errors.New("ecs-nginx-proxy: cluster is not active")
 )
@@ -26,7 +35,7 @@ var (
 	app = kingpin.New("ecs-gen", "docker-gen for AWS ECS.")
 
 	region       = app.Flag("region", "AWS region.").Short('r').Default("ap-northeast-1").String()
-	cluster      = app.Flag("cluster", "ECS cluster name.").Short('c').Required().String()
+	cluster      = app.Flag("cluster", "ECS cluster name.").Short('c').String()
 	templateFile = app.Flag("template", "Path to template file.").Short('t').Required().ExistingFile()
 	outputFile   = app.Flag("output", "Path to output file.").Short('o').Required().String()
 	taskName     = app.Flag("task", "Name of ECS task containing nginx.").Default("ecs-nginx-proxy").String()
@@ -43,6 +52,14 @@ func main() {
 	app.Version(version)
 	app.DefaultEnvars()
 	kingpin.MustParse(app.Parse(os.Args[1:]))
+	if *cluster == "" {
+		var err error
+		cluster, err = findClusterName()
+		if *cluster == "" || err != nil {
+			panic("could not determine cluster name. please define using --cluster / -c.")
+		}
+		log.Println("found cluster name to be:", *cluster)
+	}
 	sess, err := session.NewSession()
 	if err != nil {
 		panic(err)
@@ -99,4 +116,44 @@ func writeConfig(params []*container) error {
 	}
 	defer f.Close()
 	return tmpl.Execute(f, params)
+}
+
+func findClusterName() (*string, error) {
+	ip, err := findHostIP()
+	if err != nil {
+		return nil, err
+	}
+	meta, err := fetchMetadata(ip)
+	if err != nil {
+		return nil, err
+	}
+	return &meta.Cluster, nil
+}
+
+func findHostIP() (string, error) {
+	result, err := sendHTTRequest("http://169.254.169.254/latest/meta-data/local-ipv4")
+	return string(result), err
+}
+
+func fetchMetadata(host string) (*metadata, error) {
+	result, err := sendHTTRequest("http://" + host + ":51678/v1/metadata")
+	var meta metadata
+	err = json.Unmarshal(result, &meta)
+	if err != nil {
+		return nil, err
+	}
+	return &meta, nil
+}
+
+func sendHTTRequest(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
 }
