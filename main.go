@@ -70,18 +70,24 @@ func main() {
 		updateAndWrite(ec2, ecs)
 		return
 	}
+	execute(ec2, ecs)
 	for range time.Tick(time.Second * time.Duration(*freq)) {
-		updateAndWrite(ec2, ecs)
-		err = runSignal()
-		if err != nil {
-			log.Println("failed to run signal command")
-			log.Println("error: ", err)
-			switch err := err.(type) {
-			case *exec.ExitError:
-				log.Println(err.Stderr)
-			}
-			os.Exit(1)
+		execute(ec2, ecs)
+	}
+}
+
+func execute(ec2 *ec2Client, ecs *ecsClient) {
+	updateAndWrite(ec2, ecs)
+	var err error
+	err = runSignal()
+	if err != nil {
+		log.Println("failed to run signal command")
+		log.Println("error: ", err)
+		switch err := err.(type) {
+		case *exec.ExitError:
+			log.Println(err.Stderr)
 		}
+		os.Exit(1)
 	}
 }
 
