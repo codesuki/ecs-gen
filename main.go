@@ -106,6 +106,15 @@ func runSignal() error {
 }
 
 func writeConfig(params []*container) error {
+	var containers map[string][]*container
+	containers = make(map[string][]*container);
+	// Remap the containers as a 2D array with the domain as the index
+	for _, v := range params {
+		if _, ok := containers[v.Host]; !ok {
+			containers[v.Host] = make([]*container, 0)
+		}
+		containers[v.Host] = append(containers[v.Host], v)
+	}
 	tmpl, err := template.ParseFiles(*templateFile)
 	if err != nil {
 		return err
@@ -115,7 +124,7 @@ func writeConfig(params []*container) error {
 		return err
 	}
 	defer f.Close()
-	return tmpl.Execute(f, params)
+	return tmpl.Execute(f, containers)
 }
 
 func findClusterName() (*string, error) {
