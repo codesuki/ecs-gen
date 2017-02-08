@@ -55,7 +55,7 @@ func main() {
 	if *cluster == "" {
 		var err error
 		cluster, err = findClusterName()
-		if *cluster == "" || err != nil {
+		if err != nil || *cluster == "" {
 			panic("could not determine cluster name. please define using --cluster / -c.")
 		}
 		log.Println("found cluster name to be:", *cluster)
