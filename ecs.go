@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	"fmt"
 )
 
 type ecsClient struct {
@@ -23,6 +24,9 @@ func (e *ecsClient) describeCluster(cluster string) (*ecs.Cluster, error) {
 	resp, err := e.ecs.DescribeClusters(params)
 	if err != nil {
 		return nil, err
+	}
+	if len(resp.Clusters) == 0 {
+		return nil, fmt.Errorf("Cluster %s not found. Did you specify the correct cluster name for your region?", cluster)
 	}
 	return resp.Clusters[0], nil
 }
