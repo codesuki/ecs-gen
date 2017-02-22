@@ -26,7 +26,7 @@ func (e *ecsClient) describeCluster(cluster string) (*ecs.Cluster, error) {
 		return nil, err
 	}
 	if len(resp.Clusters) == 0 {
-		return nil, fmt.Errorf("Cluster %s not found. Did you specify the correct cluster name for your region?", cluster)
+		return nil, fmt.Errorf("Cluster %s not found. Did you specify the correct --cluster and --region?", cluster)
 	}
 	return resp.Clusters[0], nil
 }
