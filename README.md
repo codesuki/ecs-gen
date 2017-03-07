@@ -37,6 +37,7 @@ When using the docker image directly you can set all parameters using environmen
 * ECS_GEN_CLUSTER
 * ECS_GEN_TEMPLATE
 * ECS_GEN_OUTPUT
+* ECS_GEN_TASK
 * ECS_GEN_SIGNAL
 * ECS_GEN_FREQUENCY
 * ECS_GEN_ONCE
