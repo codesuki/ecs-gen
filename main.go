@@ -39,6 +39,7 @@ var (
 	templateFile = app.Flag("template", "Path to template file.").Short('t').Required().ExistingFile()
 	outputFile   = app.Flag("output", "Path to output file.").Short('o').Required().String()
 	taskName     = app.Flag("task", "Name of ECS task containing nginx.").Default("ecs-nginx-proxy").String()
+	hostVar      = app.Flag("host-var", "Which ENV var to use for the hostname.").Default("virtual_host").String()
 
 	signal = app.Flag("signal", "Command to run to signal change.").Short('s').Default("nginx -s reload").String()
 
@@ -92,7 +93,7 @@ func execute(ec2 *ec2Client, ecs *ecsClient) {
 }
 
 func updateAndWrite(ec2 *ec2Client, ecs *ecsClient) {
-	containers, err := newScanner(*cluster, ec2, ecs).scan()
+	containers, err := newScanner(*cluster, *hostVar, ec2, ecs).scan()
 	if err != nil {
 		log.Println(err)
 	}
