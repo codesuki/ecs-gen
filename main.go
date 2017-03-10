@@ -13,6 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"fmt"
 )
 
 type container struct {
@@ -26,6 +27,12 @@ type metadata struct {
 	ContainerInstanceArn string
 	Version              string
 }
+
+type document struct {
+	Region           string
+	AvailabilityZone string
+}
+
 
 var (
 	errClusterNotActive = errors.New("ecs-nginx-proxy: cluster is not active")
@@ -60,6 +67,16 @@ func main() {
 		}
 		log.Println("found cluster name to be:", *cluster)
 	}
+
+	if *region == "" {
+		var err error
+		region, err = findRegion()
+		if err != nil || *region == "" {
+			panic("could not determine region name. please define using --region / -r.")
+		}
+		fmt.Println("found cluster name to be:", *region)
+	}
+
 	sess, err := session.NewSession()
 	if err != nil {
 		panic(err)
@@ -158,6 +175,25 @@ func fetchMetadata(host string) (*metadata, error) {
 		return nil, err
 	}
 	return &meta, nil
+}
+
+func findRegion() (*string, error) {
+	meta, err := fetchDocument()
+	if err != nil {
+		return nil, err
+	}
+	return &meta.Region, nil
+}
+
+func fetchDocument()(*document, error) {
+	result, err := sendHTTRequest("http://169.254.169.254/latest/dynamic/instance-identity/document")
+	var meta document
+	err = json.Unmarshal(result, &meta)
+	if err != nil {
+		return nil, err
+	}
+	return &meta, nil
+
 }
 
 func sendHTTRequest(url string) ([]byte, error) {
