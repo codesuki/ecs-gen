@@ -13,7 +13,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"fmt"
 )
 
 type container struct {
