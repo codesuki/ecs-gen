@@ -74,7 +74,7 @@ func main() {
 		if err != nil || *region == "" {
 			panic("could not determine region name. please define using --region / -r.")
 		}
-		fmt.Println("found cluster name to be:", *region)
+		log.Println("found Region name to be:", *region)
 	}
 
 	sess, err := session.NewSession()
