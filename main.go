@@ -40,7 +40,7 @@ var (
 var (
 	app = kingpin.New("ecs-gen", "docker-gen for AWS ECS.")
 
-	region       = app.Flag("region", "AWS region.").Short('r').Default("ap-northeast-1").String()
+	region       = app.Flag("region", "AWS region.").Short('r').String()
 	cluster      = app.Flag("cluster", "ECS cluster name.").Short('c').String()
 	templateFile = app.Flag("template", "Path to template file.").Short('t').Required().ExistingFile()
 	outputFile   = app.Flag("output", "Path to output file.").Short('o').Required().String()
