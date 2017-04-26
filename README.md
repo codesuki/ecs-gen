@@ -64,6 +64,7 @@ type Container struct {
     Host    string // VIRTUAL_HOST environment variable
     Port    string
     Address string
+    Env     map[string]string
 }
 ```
 

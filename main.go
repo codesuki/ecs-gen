@@ -19,6 +19,7 @@ type container struct {
 	Host    string
 	Port    string
 	Address string
+	Env     map[string]string
 }
 
 type metadata struct {

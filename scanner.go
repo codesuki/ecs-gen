@@ -107,7 +107,7 @@ func (s *scanner) extractContainer(t *ecs.Task, cd *ecs.ContainerDefinition) (*c
 	if len(s.nameNetworkBindingsMap[*cd.Name]) == 0 {
 		return nil, errors.New("container has no network bindings. skipping")
 	}
-	virtualHost, virtualPort := extractVars(cd.Environment)
+	virtualHost, virtualPort, envVariables := extractVars(cd.Environment)
 	if virtualHost == "" {
 		return nil, errors.New("[" + *cd.Name + "] VIRTUAL_HOST environment variable not found. skipping")
 	}
@@ -123,6 +123,7 @@ func (s *scanner) extractContainer(t *ecs.Task, cd *ecs.ContainerDefinition) (*c
 	return &container{
 		Host:    virtualHost,
 		Port:    port,
+		Env:     envVariables,
 		Address: s.idAddressMap[*t.ContainerInstanceArn],
 	}, nil
 }
@@ -136,15 +137,18 @@ func extractHostPort(virtualPort string, nbs []*ecs.NetworkBinding) string {
 	return ""
 }
 
-func extractVars(env []*ecs.KeyValuePair) (string, string) {
-	virtualHost := ""
-	virtualPort := ""
+func extractVars(env []*ecs.KeyValuePair) (string, string, map[string]string) {
+	envVariables := make(map[string]string)
+	virtualHost  := ""
+	virtualPort  := ""
+
 	for _, e := range env {
+		envVariables[*e.Name] = *e.Value
 		if strings.ToLower(*e.Name) == "virtual_host" {
 			virtualHost = *e.Value
 		} else if strings.ToLower(*e.Name) == "virtual_port" {
 			virtualPort = *e.Value
 		}
 	}
-	return virtualHost, virtualPort
+	return virtualHost, virtualPort, envVariables
 }
