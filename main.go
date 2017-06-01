@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -19,6 +21,7 @@ type container struct {
 	Host    string
 	Port    string
 	Address string
+	Env     map[string]string
 }
 
 type metadata struct {
@@ -111,6 +114,15 @@ func runSignal() error {
 	return err
 }
 
+func newTemplate(name string) *template.Template {
+	tmpl := template.New(name).Funcs(template.FuncMap{
+		"replace":                strings.Replace,
+		"split":                  strings.Split,
+		"splitN":                 strings.SplitN,
+	})
+	return tmpl
+}
+
 func writeConfig(params []*container) error {
 	var containers map[string][]*container
 	containers = make(map[string][]*container);
@@ -121,7 +133,7 @@ func writeConfig(params []*container) error {
 		}
 		containers[v.Host] = append(containers[v.Host], v)
 	}
-	tmpl, err := template.ParseFiles(*templateFile)
+	tmpl, err := newTemplate(filepath.Base(*templateFile)).ParseFiles(*templateFile)
 	if err != nil {
 		return err
 	}
