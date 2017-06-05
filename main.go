@@ -42,6 +42,7 @@ var (
 	templateFile = app.Flag("template", "Path to template file.").Short('t').Required().ExistingFile()
 	outputFile   = app.Flag("output", "Path to output file.").Short('o').Required().String()
 	taskName     = app.Flag("task", "Name of ECS task containing nginx.").Default("ecs-nginx-proxy").String()
+	hostVar      = app.Flag("host-var", "Which ENV var to use for the hostname.").Default("virtual_host").String()
 
 	signal = app.Flag("signal", "Command to run to signal change.").Short('s').Default("nginx -s reload").String()
 
@@ -55,11 +56,14 @@ func main() {
 	app.Version(version)
 	app.DefaultEnvars()
 	kingpin.MustParse(app.Parse(os.Args[1:]))
+	if *hostVar == "" {
+		log.Fatalf("host-var must not be empty")
+	}
 	if *cluster == "" {
 		var err error
 		cluster, err = findClusterName()
 		if err != nil || *cluster == "" {
-			panic("could not determine cluster name. please define using --cluster / -c.")
+			log.Fatalf("could not determine cluster name. please define using --cluster / -c")
 		}
 		log.Println("found cluster name to be:", *cluster)
 	}
@@ -95,7 +99,7 @@ func execute(ec2 *ec2Client, ecs *ecsClient) {
 }
 
 func updateAndWrite(ec2 *ec2Client, ecs *ecsClient) {
-	containers, err := newScanner(*cluster, ec2, ecs).scan()
+	containers, err := newScanner(*cluster, *hostVar, ec2, ecs).scan()
 	if err != nil {
 		log.Println(err)
 	}
@@ -116,16 +120,16 @@ func runSignal() error {
 
 func newTemplate(name string) *template.Template {
 	tmpl := template.New(name).Funcs(template.FuncMap{
-		"replace":                strings.Replace,
-		"split":                  strings.Split,
-		"splitN":                 strings.SplitN,
+		"replace": strings.Replace,
+		"split":   strings.Split,
+		"splitN":  strings.SplitN,
 	})
 	return tmpl
 }
 
 func writeConfig(params []*container) error {
 	var containers map[string][]*container
-	containers = make(map[string][]*container);
+	containers = make(map[string][]*container)
 	// Remap the containers as a 2D array with the domain as the index
 	for _, v := range params {
 		if _, ok := containers[v.Host]; !ok {
