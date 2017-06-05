@@ -56,11 +56,14 @@ func main() {
 	app.Version(version)
 	app.DefaultEnvars()
 	kingpin.MustParse(app.Parse(os.Args[1:]))
+	if *hostVar == "" {
+		log.Fatalf("host-var must not be empty")
+	}
 	if *cluster == "" {
 		var err error
 		cluster, err = findClusterName()
 		if err != nil || *cluster == "" {
-			panic("could not determine cluster name. please define using --cluster / -c.")
+			log.Fatalf("could not determine cluster name. please define using --cluster / -c")
 		}
 		log.Println("found cluster name to be:", *cluster)
 	}
@@ -117,16 +120,16 @@ func runSignal() error {
 
 func newTemplate(name string) *template.Template {
 	tmpl := template.New(name).Funcs(template.FuncMap{
-		"replace":                strings.Replace,
-		"split":                  strings.Split,
-		"splitN":                 strings.SplitN,
+		"replace": strings.Replace,
+		"split":   strings.Split,
+		"splitN":  strings.SplitN,
 	})
 	return tmpl
 }
 
 func writeConfig(params []*container) error {
 	var containers map[string][]*container
-	containers = make(map[string][]*container);
+	containers = make(map[string][]*container)
 	// Remap the containers as a 2D array with the domain as the index
 	for _, v := range params {
 		if _, ok := containers[v.Host]; !ok {
