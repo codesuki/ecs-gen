@@ -14,14 +14,15 @@ type scanner struct {
 	ecs *ecsClient
 
 	cluster string
+	hostVar string
 
 	idAddressMap map[string]string
 
 	nameNetworkBindingsMap map[string][]*ecs.NetworkBinding
 }
 
-func newScanner(cluster string, ec2 *ec2Client, ecs *ecsClient) *scanner {
-	return &scanner{ec2: ec2, ecs: ecs, cluster: cluster}
+func newScanner(cluster string, hostVar string, ec2 *ec2Client, ecs *ecsClient) *scanner {
+	return &scanner{ec2: ec2, ecs: ecs, cluster: cluster, hostVar: hostVar}
 }
 
 func (s *scanner) scan() ([]*container, error) {
@@ -55,7 +56,9 @@ func (s *scanner) makeIDAddressMap() (map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		instances[*containerInstances[i].ContainerInstanceArn] = *instance.PrivateIpAddress
+		if instance.PrivateIpAddress != nil {
+			instances[*containerInstances[i].ContainerInstanceArn] = *instance.PrivateIpAddress
+		}
 	}
 	return instances, nil
 }
@@ -107,9 +110,9 @@ func (s *scanner) extractContainer(t *ecs.Task, cd *ecs.ContainerDefinition) (*c
 	if len(s.nameNetworkBindingsMap[*cd.Name]) == 0 {
 		return nil, errors.New("container has no network bindings. skipping")
 	}
-	virtualHost, virtualPort := extractVars(cd.Environment)
+	virtualHost, virtualPort, envVariables := extractVars(cd.Environment, s.hostVar)
 	if virtualHost == "" {
-		return nil, errors.New("[" + *cd.Name + "] VIRTUAL_HOST environment variable not found. skipping")
+		return nil, errors.New("[" + *cd.Name + "] " + s.hostVar + " environment variable not found. skipping")
 	}
 	port := ""
 	if len(s.nameNetworkBindingsMap[*cd.Name]) == 1 {
@@ -123,6 +126,7 @@ func (s *scanner) extractContainer(t *ecs.Task, cd *ecs.ContainerDefinition) (*c
 	return &container{
 		Host:    virtualHost,
 		Port:    port,
+		Env:     envVariables,
 		Address: s.idAddressMap[*t.ContainerInstanceArn],
 	}, nil
 }
@@ -136,15 +140,18 @@ func extractHostPort(virtualPort string, nbs []*ecs.NetworkBinding) string {
 	return ""
 }
 
-func extractVars(env []*ecs.KeyValuePair) (string, string) {
+func extractVars(env []*ecs.KeyValuePair, hostVar string) (string, string, map[string]string) {
+	envVariables := make(map[string]string)
 	virtualHost := ""
 	virtualPort := ""
+
 	for _, e := range env {
-		if strings.ToLower(*e.Name) == "virtual_host" {
+		envVariables[*e.Name] = *e.Value
+		if strings.ToLower(*e.Name) == strings.ToLower(hostVar) {
 			virtualHost = *e.Value
 		} else if strings.ToLower(*e.Name) == "virtual_port" {
 			virtualPort = *e.Value
 		}
 	}
-	return virtualHost, virtualPort
+	return virtualHost, virtualPort, envVariables
 }
