@@ -1,5 +1,5 @@
 NAME = ecs-gen
-VERSION = $(shell git describe --tags)
+VERSION = $(git describe --tags)
 
 WORKDIR = /go/src/github.com/madhu1512/ecs-gen
 
