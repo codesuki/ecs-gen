@@ -30,6 +30,12 @@ type metadata struct {
 	Version              string
 }
 
+type document struct {
+	Region           string
+	AvailabilityZone string
+}
+
+
 var (
 	errClusterNotActive = errors.New("ecs-nginx-proxy: cluster is not active")
 )
@@ -37,7 +43,7 @@ var (
 var (
 	app = kingpin.New("ecs-gen", "docker-gen for AWS ECS.")
 
-	region       = app.Flag("region", "AWS region.").Short('r').Default("ap-northeast-1").String()
+	region       = app.Flag("region", "AWS region.").Short('r').String()
 	cluster      = app.Flag("cluster", "ECS cluster name.").Short('c').String()
 	templateFile = app.Flag("template", "Path to template file.").Short('t').Required().ExistingFile()
 	outputFile   = app.Flag("output", "Path to output file.").Short('o').Required().String()
@@ -67,6 +73,16 @@ func main() {
 		}
 		log.Println("found cluster name to be:", *cluster)
 	}
+
+	if *region == "" {
+		var err error
+		region, err = findRegion()
+		if err != nil || *region == "" {
+			panic("could not determine region name. please define using --region / -r.")
+		}
+		log.Println("found Region name to be:", *region)
+	}
+
 	sess, err := session.NewSession()
 	if err != nil {
 		panic(err)
@@ -174,6 +190,25 @@ func fetchMetadata(host string) (*metadata, error) {
 		return nil, err
 	}
 	return &meta, nil
+}
+
+func findRegion() (*string, error) {
+	meta, err := fetchDocument()
+	if err != nil {
+		return nil, err
+	}
+	return &meta.Region, nil
+}
+
+func fetchDocument()(*document, error) {
+	result, err := sendHTTRequest("http://169.254.169.254/latest/dynamic/instance-identity/document")
+	var meta document
+	err = json.Unmarshal(result, &meta)
+	if err != nil {
+		return nil, err
+	}
+	return &meta, nil
+
 }
 
 func sendHTTRequest(url string) ([]byte, error) {
