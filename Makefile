@@ -1,7 +1,7 @@
 NAME = ecs-gen
 VERSION = $(shell git describe --tags)
 
-WORKDIR = /go/src/github.com/codesuki/ecs-gen
+WORKDIR = /go/src/github.com/madhu1512/ecs-gen
 
 LDFLAGS = -X main.version=$(VERSION)
 
