@@ -37,7 +37,7 @@ var (
 var (
 	app = kingpin.New("ecs-gen", "docker-gen for AWS ECS.")
 
-	region       = app.Flag("region", "AWS region.").Short('r').Default("ap-northeast-1").String()
+	region       = app.Flag("region", "AWS region.").Short('r').String()
 	cluster      = app.Flag("cluster", "ECS cluster name.").Short('c').String()
 	templateFile = app.Flag("template", "Path to template file.").Short('t').Required().ExistingFile()
 	outputFile   = app.Flag("output", "Path to output file.").Short('o').Required().String()
@@ -56,21 +56,14 @@ func main() {
 	app.Version(version)
 	app.DefaultEnvars()
 	kingpin.MustParse(app.Parse(os.Args[1:]))
-	if *hostVar == "" {
-		log.Fatalf("host-var must not be empty")
-	}
-	if *cluster == "" {
-		var err error
-		cluster, err = findClusterName()
-		if err != nil || *cluster == "" {
-			log.Fatalf("could not determine cluster name. please define using --cluster / -c")
-		}
-		log.Println("found cluster name to be:", *cluster)
-	}
 	sess, err := session.NewSession()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
+	meta := NewEC2Metadata(sess)
+	checkRegionFlag(meta)
+	checkHostVarFlag()
+	checkClusterFlag()
 	ec2 := newEC2(*region, sess)
 	ecs := newECS(*region, sess)
 	if *once {
@@ -80,6 +73,34 @@ func main() {
 	execute(ec2, ecs)
 	for range time.Tick(time.Second * time.Duration(*freq)) {
 		execute(ec2, ecs)
+	}
+}
+
+func checkHostVarFlag() {
+	if *hostVar == "" {
+		log.Fatalf("host-var must not be empty")
+	}
+}
+
+func checkClusterFlag() {
+	if *cluster == "" {
+		var err error
+		cluster, err = findClusterName()
+		if err != nil || *cluster == "" {
+			log.Fatalf("could not determine cluster name. please define using --cluster / -c")
+		}
+		log.Println("found cluster name to be:", *cluster)
+	}
+}
+
+func checkRegionFlag(meta *ec2Meta) {
+	if *region == "" {
+		r, err := meta.region()
+		if err != nil {
+			log.Fatalf("could not determine cluster region. please define using --region / -r")
+		}
+		*region = r
+		log.Println("found cluster region to be:", *region)
 	}
 }
 
