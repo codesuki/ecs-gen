@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -10,10 +11,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/mitchellh/hashstructure"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -51,6 +54,7 @@ var (
 )
 
 var version = ""
+var tempFile = "ecs-gen.tmp"
 
 func main() {
 	app.Version(version)
@@ -105,29 +109,70 @@ func checkRegionFlag(meta *ec2Meta) {
 }
 
 func execute(ec2 *ec2Client, ecs *ecsClient) {
-	updateAndWrite(ec2, ecs)
-	var err error
-	err = runSignal()
-	if err != nil {
-		log.Println("failed to run signal command")
-		log.Println("error: ", err)
-		switch err := err.(type) {
-		case *exec.ExitError:
-			log.Println(err.Stderr)
+	if updateAndWrite(ec2, ecs) {
+		var err error
+		err = runSignal()
+		if err != nil {
+			log.Println("failed to run signal command")
+			log.Println("error: ", err)
+			switch err := err.(type) {
+			case *exec.ExitError:
+				log.Println(err.Stderr)
+			}
+			cleanupTempFile()
+			os.Exit(1)
 		}
-		os.Exit(1)
 	}
 }
 
-func updateAndWrite(ec2 *ec2Client, ecs *ecsClient) {
+func hasUpdate(containers []*container) bool {
+	hash, err := hashstructure.Hash(containers, nil)
+	if err != nil {
+		panic(err)
+	}
+	currentHash := []byte(fmt.Sprintf("%d", hash))
+	filename := os.TempDir() + "/" + tempFile
+	log.Println("generating hash:", hash)
+
+	previousHash, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Println("unable to read tmp file: ", err)
+		log.Println("writing new file")
+	}
+
+	if !(reflect.DeepEqual(previousHash, currentHash)) {
+		log.Println("changes detected")
+		if err := ioutil.WriteFile(filename, currentHash, 0666); err != nil {
+			log.Fatal(err)
+			cleanupTempFile()
+		}
+		return true
+	}
+	log.Println("no changes detected")
+	return false
+}
+
+func cleanupTempFile() {
+	filename := os.TempDir() + "/" + tempFile
+	err := os.Remove(filename)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func updateAndWrite(ec2 *ec2Client, ecs *ecsClient) bool {
 	containers, err := newScanner(*cluster, *hostVar, ec2, ecs).scan()
 	if err != nil {
 		log.Println(err)
 	}
-	err = writeConfig(containers)
-	if err != nil {
-		log.Println(err)
+	if hasUpdate(containers) {
+		err = writeConfig(containers)
+		if err != nil {
+			log.Println(err)
+		}
+		return true
 	}
+	return false
 }
 
 func runSignal() error {
