@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -126,13 +125,24 @@ func execute(ec2 *ec2Client, ecs *ecsClient) {
 }
 
 func hasUpdate(containers []*container) bool {
-	hash, err := hashstructure.Hash(containers, nil)
+
+	containerHash, err := hashstructure.Hash(containers, nil)
 	if err != nil {
-		panic(err)
+		log.Println("unable to hash containers: ", err)
 	}
-	currentHash := []byte(fmt.Sprintf("%d", hash))
+
+	templateContents, err := ioutil.ReadFile(*templateFile)
+	if err != nil {
+		log.Println("unable to read template file: ", err)
+	}
+
+	templateHash, err := hashstructure.Hash(templateContents, nil)
+	if err != nil {
+		log.Println("unable to hash template file: ", err)
+	}
+
+	currentHash := []byte(fmt.Sprintf("%d.%d", containerHash, templateHash))
 	filename := os.TempDir() + "/" + tempFile
-	log.Println("generating hash:", hash)
 
 	previousHash, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -140,7 +150,7 @@ func hasUpdate(containers []*container) bool {
 		log.Println("writing new file")
 	}
 
-	if !(reflect.DeepEqual(previousHash, currentHash)) {
+	if string(previousHash) != string(currentHash) {
 		log.Println("changes detected")
 		if err := ioutil.WriteFile(filename, currentHash, 0666); err != nil {
 			log.Fatal(err)
