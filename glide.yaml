@@ -9,4 +9,3 @@ import:
   - service/ecs
 - package: gopkg.in/alecthomas/kingpin.v2
   version: ^2.2.3
-- package: github.com/mitchellh/hashstructure
