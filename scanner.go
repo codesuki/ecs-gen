@@ -26,7 +26,7 @@ func newScanner(cluster string, hostVar string, ec2 *ec2Client, ecs *ecsClient) 
 }
 
 func (s *scanner) scan() ([]*container, error) {
-	log.Println("updating config")
+	log.Println("getting ECS cluster information")
 	clusterInfo, err := s.ecs.describeCluster(s.cluster)
 	if err != nil {
 		return nil, err

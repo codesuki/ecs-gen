@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -15,7 +14,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/mitchellh/hashstructure"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -52,8 +50,8 @@ var (
 	once = app.Flag("once", "Only execute the template once and exit.").Bool()
 )
 
-var version = ""
-var tempFile = "ecs-gen.tmp"
+const version = ""
+const tempFile = "ecs-gen.tmp"
 
 func main() {
 	app.Version(version)
@@ -69,11 +67,11 @@ func main() {
 	checkClusterFlag()
 	ec2 := newEC2(*region, sess)
 	ecs := newECS(*region, sess)
+
+	execute(ec2, ecs)
 	if *once {
-		updateAndWrite(ec2, ecs)
 		return
 	}
-	execute(ec2, ecs)
 	for range time.Tick(time.Second * time.Duration(*freq)) {
 		execute(ec2, ecs)
 	}
@@ -108,81 +106,59 @@ func checkRegionFlag(meta *ec2Meta) {
 }
 
 func execute(ec2 *ec2Client, ecs *ecsClient) {
-	if updateAndWrite(ec2, ecs) {
-		var err error
-		err = runSignal()
-		if err != nil {
-			log.Println("failed to run signal command")
-			log.Println("error: ", err)
-			switch err := err.(type) {
-			case *exec.ExitError:
-				log.Println(err.Stderr)
-			}
-			cleanupTempFile()
-			os.Exit(1)
+	containers, err := newScanner(*cluster, *hostVar, ec2, ecs).scan()
+	if err != nil {
+		log.Fatal("unable to scan ECS cluster: ", err)
+	}
+
+	if !hasUpdate(containers) {
+		log.Println("no change in cluster or template detected")
+		return
+	}
+
+	log.Println("changes detected. Writing config")
+
+	if err := writeConfig(containers); err != nil {
+		log.Fatal("failed to update config: ", err)
+	}
+
+	if err := runSignal(); err != nil {
+		log.Println("failed to run signal command")
+		log.Println("error: ", err)
+		switch err := err.(type) {
+		case *exec.ExitError:
+			log.Println(err.Stderr)
 		}
+		cleanupTempFile()
+		os.Exit(1)
 	}
 }
 
 func hasUpdate(containers []*container) bool {
-
-	containerHash, err := hashstructure.Hash(containers, nil)
-	if err != nil {
-		log.Println("unable to hash containers: ", err)
-	}
-
-	templateContents, err := ioutil.ReadFile(*templateFile)
-	if err != nil {
-		log.Println("unable to read template file: ", err)
-	}
-
-	templateHash, err := hashstructure.Hash(templateContents, nil)
-	if err != nil {
-		log.Println("unable to hash template file: ", err)
-	}
-
-	currentHash := []byte(fmt.Sprintf("%d.%d", containerHash, templateHash))
+	currentHash := getHash(containers)
 	filename := os.TempDir() + "/" + tempFile
 
 	previousHash, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Println("unable to read tmp file: ", err)
+		log.Println("unable to read hash file: ", err)
 		log.Println("writing new file")
 	}
 
-	if string(previousHash) != string(currentHash) {
-		log.Println("changes detected")
-		if err := ioutil.WriteFile(filename, currentHash, 0666); err != nil {
-			log.Fatal(err)
-			cleanupTempFile()
+	if string(previousHash) != currentHash {
+		if err := ioutil.WriteFile(filename, []byte(currentHash), 0666); err != nil {
+			log.Println(err)
+			log.Println("unable to write tmp file, continuing...")
 		}
 		return true
 	}
-	log.Println("no changes detected")
 	return false
 }
 
 func cleanupTempFile() {
 	filename := os.TempDir() + "/" + tempFile
-	err := os.Remove(filename)
-	if err != nil {
+	if err := os.Remove(filename); err != nil {
 		log.Println(err)
 	}
-}
-
-func updateAndWrite(ec2 *ec2Client, ecs *ecsClient) bool {
-	containers, err := newScanner(*cluster, *hostVar, ec2, ecs).scan()
-	if err != nil {
-		log.Println(err)
-	}
-	if hasUpdate(containers) {
-		err = writeConfig(containers)
-		if err != nil {
-			log.Println(err)
-		}
-		return true
-	}
-	return false
 }
 
 func runSignal() error {
