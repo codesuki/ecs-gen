@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 )
 
 func getHash(containers []*container) string {
@@ -31,8 +32,16 @@ func getHash(containers []*container) string {
 		hasher.Write([]byte(container.Host))
 		hasher.Write([]byte(container.Port))
 		hasher.Write([]byte(container.Address))
-		for envKey, envVal := range container.Env {
-			hasher.Write([]byte(envKey + envVal))
+
+		//Environment vars must be sorted, or subsequent iterations will be out of order
+		//and throw off the hash
+		keys := make([]string, len(container.Env))
+		for k := range container.Env {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			hasher.Write([]byte(container.Env[k] + k))
 		}
 	}
 
