@@ -50,7 +50,8 @@ var (
 	once = app.Flag("once", "Only execute the template once and exit.").Bool()
 )
 
-var version = ""
+const version = ""
+const tempFile = "ecs-gen.tmp"
 
 func main() {
 	app.Version(version)
@@ -66,11 +67,11 @@ func main() {
 	checkClusterFlag()
 	ec2 := newEC2(*region, sess)
 	ecs := newECS(*region, sess)
+
+	execute(ec2, ecs)
 	if *once {
-		updateAndWrite(ec2, ecs)
 		return
 	}
-	execute(ec2, ecs)
 	for range time.Tick(time.Second * time.Duration(*freq)) {
 		execute(ec2, ecs)
 	}
@@ -105,27 +106,57 @@ func checkRegionFlag(meta *ec2Meta) {
 }
 
 func execute(ec2 *ec2Client, ecs *ecsClient) {
-	updateAndWrite(ec2, ecs)
-	var err error
-	err = runSignal()
+	containers, err := newScanner(*cluster, *hostVar, ec2, ecs).scan()
 	if err != nil {
+		log.Fatal("unable to scan ECS cluster: ", err)
+	}
+
+	if !hasUpdate(containers) {
+		log.Println("no change in cluster or template detected")
+		return
+	}
+
+	log.Println("changes detected. Writing config")
+
+	if err := writeConfig(containers); err != nil {
+		log.Fatal("failed to update config: ", err)
+	}
+
+	if err := runSignal(); err != nil {
 		log.Println("failed to run signal command")
 		log.Println("error: ", err)
 		switch err := err.(type) {
 		case *exec.ExitError:
 			log.Println(err.Stderr)
 		}
+		cleanupTempFile()
 		os.Exit(1)
 	}
 }
 
-func updateAndWrite(ec2 *ec2Client, ecs *ecsClient) {
-	containers, err := newScanner(*cluster, *hostVar, ec2, ecs).scan()
+func hasUpdate(containers []*container) bool {
+	currentHash := getHash(containers)
+	filename := os.TempDir() + "/" + tempFile
+
+	previousHash, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Println(err)
+		log.Println("unable to read hash file: ", err)
+		log.Println("writing new file")
 	}
-	err = writeConfig(containers)
-	if err != nil {
+
+	if string(previousHash) != currentHash {
+		if err := ioutil.WriteFile(filename, []byte(currentHash), 0666); err != nil {
+			log.Println(err)
+			log.Println("unable to write tmp file, continuing...")
+		}
+		return true
+	}
+	return false
+}
+
+func cleanupTempFile() {
+	filename := os.TempDir() + "/" + tempFile
+	if err := os.Remove(filename); err != nil {
 		log.Println(err)
 	}
 }
