@@ -5,7 +5,6 @@ import (
 	"errors"
 	"html/template"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -46,19 +45,23 @@ var (
 
 	signal = app.Flag("signal", "Command to run to signal change.").Short('s').Default("nginx -s reload").String()
 
-	freq = app.Flag("frequency", "Time in seconds between polling. Must be >0.").Short('f').Default("30").Int()
-	once = app.Flag("once", "Only execute the template once and exit.").Bool()
+	freq     = app.Flag("frequency", "Time in seconds between polling. Must be >0.").Short('f').Default("30").Int()
+	once     = app.Flag("once", "Only execute the template once and exit.").Bool()
+	logLevel = app.Flag("log-level", "Set the logging level (info, warn, error)").Short('l').Default(levelWarn).Enum(levelInfo, levelWarn, levelError)
 )
 
 var version = ""
+var logger = newLogger(levelWarn)
 
 func main() {
 	app.Version(version)
 	app.DefaultEnvars()
 	kingpin.MustParse(app.Parse(os.Args[1:]))
+	logger = newLogger(*logLevel)
 	sess, err := session.NewSession()
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err)
+		logger.Fatal("unable to instantiate AWS session")
 	}
 	meta := NewEC2Metadata(sess)
 	checkRegionFlag(meta)
@@ -78,7 +81,7 @@ func main() {
 
 func checkHostVarFlag() {
 	if *hostVar == "" {
-		log.Fatalf("host-var must not be empty")
+		logger.Fatal("host-var must not be empty")
 	}
 }
 
@@ -87,9 +90,9 @@ func checkClusterFlag() {
 		var err error
 		cluster, err = findClusterName()
 		if err != nil || *cluster == "" {
-			log.Fatalf("could not determine cluster name. please define using --cluster / -c")
+			logger.Fatal("could not determine cluster name. please define using --cluster / -c")
 		}
-		log.Println("found cluster name to be:", *cluster)
+		logger.Info("found cluster name to be:", *cluster)
 	}
 }
 
@@ -97,10 +100,10 @@ func checkRegionFlag(meta *ec2Meta) {
 	if *region == "" {
 		r, err := meta.region()
 		if err != nil {
-			log.Fatalf("could not determine cluster region. please define using --region / -r")
+			logger.Fatal("could not determine cluster region. please define using --region / -r")
 		}
 		*region = r
-		log.Println("found cluster region to be:", *region)
+		logger.Info("found cluster region to be:", *region)
 	}
 }
 
@@ -109,11 +112,11 @@ func execute(ec2 *ec2Client, ecs *ecsClient) {
 	var err error
 	err = runSignal()
 	if err != nil {
-		log.Println("failed to run signal command")
-		log.Println("error: ", err)
+		logger.Warning("failed to run signal command")
+		logger.Error(err)
 		switch err := err.(type) {
 		case *exec.ExitError:
-			log.Println(err.Stderr)
+			logger.Error(err)
 		}
 		os.Exit(1)
 	}
@@ -122,20 +125,20 @@ func execute(ec2 *ec2Client, ecs *ecsClient) {
 func updateAndWrite(ec2 *ec2Client, ecs *ecsClient) {
 	containers, err := newScanner(*cluster, *hostVar, ec2, ecs).scan()
 	if err != nil {
-		log.Println(err)
+		logger.Error(err)
 	}
 	err = writeConfig(containers)
 	if err != nil {
-		log.Println(err)
+		logger.Error(err)
 	}
 }
 
 func runSignal() error {
-	log.Println("running signal command")
+	logger.Info("running signal command")
 	output, err := exec.Command("/bin/sh", "-c", *signal).CombinedOutput()
-	log.Println("===== output start =====")
-	log.Println(string(output))
-	log.Println("===== output end =====")
+	logger.Info("===== output start =====")
+	logger.Info(string(output))
+	logger.Info("===== output end =====")
 	return err
 }
 
