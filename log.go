@@ -48,18 +48,18 @@ func newLogger(level string) *localLog {
 	return &Logger
 }
 
-func (l *localLog) Info(message ...string) {
-	l.infoLog.Print(message)
+func (l *localLog) Info(format string, v ...interface{}) {
+	l.infoLog.Printf(format, v...)
 }
 
-func (l *localLog) Warning(message ...string) {
-	l.warningLog.Print(message)
+func (l *localLog) Warning(format string, v ...interface{}) {
+	l.warningLog.Printf(format, v...)
 }
 
-func (l *localLog) Error(err error) {
-	l.errorLog.Print(err.Error())
+func (l *localLog) Error(v ...interface{}) {
+	l.errorLog.Print(v...)
 }
 
-func (l *localLog) Fatal(message ...string) {
-	l.fatalLog.Fatal(message)
+func (l *localLog) Fatal(format string, v ...interface{}) {
+	l.fatalLog.Fatalf(format, v...)
 }

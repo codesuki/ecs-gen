@@ -92,7 +92,7 @@ func checkClusterFlag() {
 		if err != nil || *cluster == "" {
 			logger.Fatal("could not determine cluster name. please define using --cluster / -c")
 		}
-		logger.Info("found cluster name to be:", *cluster)
+		logger.Info("found cluster name to be: %s", *cluster)
 	}
 }
 
@@ -103,7 +103,7 @@ func checkRegionFlag(meta *ec2Meta) {
 			logger.Fatal("could not determine cluster region. please define using --region / -r")
 		}
 		*region = r
-		logger.Info("found cluster region to be:", *region)
+		logger.Info("found cluster region to be: %s", *region)
 	}
 }
 
