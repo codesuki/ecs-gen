@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 
@@ -26,7 +25,7 @@ func newScanner(cluster string, hostVar string, ec2 *ec2Client, ecs *ecsClient) 
 }
 
 func (s *scanner) scan() ([]*container, error) {
-	log.Println("updating config")
+	logger.Info("updating config")
 	clusterInfo, err := s.ecs.describeCluster(s.cluster)
 	if err != nil {
 		return nil, err
@@ -86,7 +85,7 @@ func (s *scanner) extractContainers() ([]*container, error) {
 		for _, cd := range taskDefinition.ContainerDefinitions {
 			container, err := s.extractContainer(t, cd)
 			if err != nil {
-				log.Println(err)
+				logger.Error(err)
 				continue
 			}
 			containers = append(containers, container)
