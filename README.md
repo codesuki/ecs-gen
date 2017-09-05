@@ -61,12 +61,15 @@ For now the available parameters are limited to things needed to make a nginx re
 
 ```go
 type Container struct {
+    Name    string // first host (space delimited) in VIRTUAL_HOST
     Host    string // VIRTUAL_HOST environment variable
     Port    string
     Address string
     Env     map[string]string
 }
 ```
+
+**Note:** The Host field can contain more than one (space delimited) hostname - this is to allow for tasks to respond to more than one hostname (for instance, `example.com` and `www.example.com`). If using the nginx template, using the VIRTUAL_HOST string `example.com www.example.com` would result in a single upstream definition for `example.com`, and a server_name of `example.com www.example.com`, so that nginx responds to both (an advanced use case would be to use a regex definition for the second hostname).
 
 ## TODO
 * Expose more information
