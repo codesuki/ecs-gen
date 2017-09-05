@@ -17,6 +17,7 @@ import (
 )
 
 type container struct {
+	Name    string
 	Host    string
 	Port    string
 	Address string
@@ -156,10 +157,10 @@ func writeConfig(params []*container) error {
 	containers = make(map[string][]*container)
 	// Remap the containers as a 2D array with the domain as the index
 	for _, v := range params {
-		if _, ok := containers[v.Host]; !ok {
-			containers[v.Host] = make([]*container, 0)
+		if _, ok := containers[v.Name]; !ok {
+			containers[v.Name] = make([]*container, 0)
 		}
-		containers[v.Host] = append(containers[v.Host], v)
+		containers[v.Name] = append(containers[v.Name], v)
 	}
 	tmpl, err := newTemplate(filepath.Base(*templateFile)).ParseFiles(*templateFile)
 	if err != nil {
