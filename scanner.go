@@ -47,7 +47,7 @@ func (s *scanner) makeIDAddressMap() (map[string]string, error) {
 		return nil, err
 	}
 	containerInstances, err := s.ecs.describeContainerInstances(s.cluster, arns)
-	if err != nil {
+	if len(arns) != 0 && err != nil {
 		return nil, err
 	}
 	for i := range containerInstances {
