@@ -5,18 +5,18 @@ WORKDIR = /go/src/github.com/codesuki/ecs-gen
 
 LDFLAGS = -X main.version=$(VERSION)
 
-.PHONY: docker build clean deps
+.PHONY: docker build clean deps zip
 
 docker:
-	docker build -t ecs-gen-builder:latest -f Dockerfile.build .
-	docker run --rm -v $(CURDIR):$(WORKDIR) ecs-gen-builder
-	docker build -t ecs-gen:latest -f Dockerfile .
+	docker build --target builder -t ecs-gen:latest .
+	docker run -v $(CURDIR)/build:/mnt/build --rm ecs-gen:latest cp -R $(WORKDIR)/build/ /mnt/
+	docker build -t ecs-gen:latest .
 	docker run --rm ecs-gen:latest ecs-gen --version
 
 build: deps
 	for GOOS in darwin linux; do \
 		for GOARCH in 386 amd64; do \
-			GOOS=$$GOOS GOARCH=$$GOARCH go build -ldflags "$(LDFLAGS)" -v -o build/$(NAME)-$$GOOS-$$GOARCH ; \
+			GOOS=$$GOOS GOARCH=$$GOARCH go build -ldflags "$(LDFLAGS)" -o build/$(NAME)-$$GOOS-$$GOARCH ; \
 		done \
 	done
 
