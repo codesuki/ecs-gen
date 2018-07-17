@@ -47,7 +47,7 @@ func (s *scanner) makeIDAddressMap() (map[string]string, error) {
 		return nil, err
 	}
 	containerInstances, err := s.ecs.describeContainerInstances(s.cluster, arns)
-	if err != nil {
+	if len(arns) != 0 && err != nil {
 		return nil, err
 	}
 	for i := range containerInstances {
@@ -106,16 +106,18 @@ func (s *scanner) extractContainer(t *ecs.Task, cd *ecs.ContainerDefinition) (*c
 	if strings.ToLower(*cd.Name) == *taskName {
 		return nil, errors.New("container is own container. skipping")
 	}
-	if len(s.nameNetworkBindingsMap[*cd.Name]) == 0 {
-		return nil, errors.New("container has no network bindings. skipping")
-	}
 	virtualHost, virtualPort, envVariables := extractVars(cd.Environment, s.hostVar)
 	if virtualHost == "" {
 		return nil, errors.New("[" + *cd.Name + "] " + s.hostVar + " environment variable not found. skipping")
 	}
 	port := ""
-	if len(s.nameNetworkBindingsMap[*cd.Name]) == 1 {
+	address := ""
+	if len(s.nameNetworkBindingsMap[*cd.Name]) == 0 {
+		port = strconv.FormatInt(80, 10)
+		address = string(*t.Containers[0].NetworkInterfaces[0].PrivateIpv4Address)
+	} else if len(s.nameNetworkBindingsMap[*cd.Name]) == 1 {
 		port = strconv.FormatInt(*s.nameNetworkBindingsMap[*cd.Name][0].HostPort, 10)
+		address = s.idAddressMap[*t.ContainerInstanceArn]
 	} else if virtualPort != "" {
 		port = extractHostPort(virtualPort, s.nameNetworkBindingsMap[*cd.Name])
 	}
@@ -127,7 +129,7 @@ func (s *scanner) extractContainer(t *ecs.Task, cd *ecs.ContainerDefinition) (*c
 		Host:    virtualHost,
 		Port:    port,
 		Env:     envVariables,
-		Address: s.idAddressMap[*t.ContainerInstanceArn],
+		Address: address,
 	}, nil
 }
 
