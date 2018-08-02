@@ -42,6 +42,100 @@ When using the docker image directly you can set all parameters using environmen
 * ECS_GEN_FREQUENCY
 * ECS_GEN_ONCE
 
+## ECS Task IAM Policy
+
+The following is a IAM Role that contains the permissions required for ecs-gen to operate.
+You will need to change one reference to your own ECS Cluster as seen at `"Fn::GetAtt": ["ECSCluster", "Arn"]` as yours might not be called `ECSCluster`.
+
+    "HaproxyRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": ["ecs-tasks.amazonaws.com"]
+              },
+              "Action": ["sts:AssumeRole"]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "ec2",
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": ["ec2:DescribeInstances"],
+                  "Resource": "*"
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName": "ecs",
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": ["ecs:DescribeContainerInstances"],
+                  "Resource": {
+                    "Fn::Join": [":",
+                      [
+                        "arn:aws:ecs",
+                        { "Ref": "AWS::Region" },
+                        { "Ref": "AWS::AccountId" },
+                        "container-instance/*"
+                      ]
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeClusters",
+                    "ecs:ListContainerInstances"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": ["ECSCluster", "Arn"]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeTaskDefinition",
+                    "ecs:ListTasks"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeTasks"
+                  ],
+                  "Resource": {
+                    "Fn::Join": [
+                      ":",
+                      [
+                        "arn:aws:ecs",
+                        { "Ref": "AWS::Region" },
+                        { "Ref": "AWS::AccountId" },
+                        "task/*"
+                      ]
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+
 ## Example
 ### Fill a template once
 Running the following on the commandline `ecs-gen` will query the specified cluster, execute the template and exit.
