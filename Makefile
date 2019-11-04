@@ -7,11 +7,11 @@ LDFLAGS = -X main.version=$(VERSION)
 
 .PHONY: docker build clean deps
 
-docker:
-	docker build -t ecs-gen-builder:latest -f Dockerfile.build .
-	docker run --rm -v $(CURDIR):$(WORKDIR) ecs-gen-builder
-	docker build -t ecs-gen:latest -f Dockerfile .
-	docker run --rm ecs-gen:latest ecs-gen --version
+# docker:
+	# docker build -t ecs-gen-builder:latest -f Dockerfile.build .
+	# docker run --rm -v $(CURDIR):$(WORKDIR) ecs-gen-builder
+	# docker build -t ecs-gen:latest -f Dockerfile .
+	# docker run --rm ecs-gen:latest ecs-gen --version
 
 build: deps
 	for GOOS in darwin linux; do \

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -103,6 +104,7 @@ func (s *scanner) makeNameNetworkBindingsMap(containers []*ecs.Container) map[st
 }
 
 func (s *scanner) extractContainer(t *ecs.Task, cd *ecs.ContainerDefinition) (*container, error) {
+	defer rescue("extractContainer")
 	if strings.ToLower(*cd.Name) == *taskName {
 		return nil, errors.New("container is own container. skipping")
 	}
@@ -156,4 +158,14 @@ func extractVars(env []*ecs.KeyValuePair, hostVar string) (string, string, map[s
 		}
 	}
 	return virtualHost, virtualPort, envVariables
+}
+
+func rescue(funcName string) {
+	errorString := ""
+	r := recover()
+	if r != nil {
+		errorString = fmt.Sprintf("We handled Panic [code %v] from function: %s", r, funcName)
+		errors.New(errorString)
+	}
+	return
 }
